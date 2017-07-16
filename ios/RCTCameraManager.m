@@ -15,6 +15,7 @@
 
 @property (strong, nonatomic) RCTSensorOrientationChecker * sensorOrientationChecker;
 @property (assign, nonatomic) NSInteger* flashMode;
+@property (assign, nonatomic) AVCaptureMetadataOutput *metaDataOutput;
 
 @end
 
@@ -593,7 +594,9 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
           CGImageSourceRef source = CGImageSourceCreateWithData((CFDataRef)imageData, NULL);
           //get all the metadata in the image
           NSMutableDictionary *imageMetadata = [(NSDictionary *) CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, NULL)) mutableCopy];
-
+          for(NSString *key in [imageMetadata allKeys]) {
+            NSLog(@"%@",[imageMetadata objectForKey:key]);
+          }
           // create cgimage
           CGImageRef cgImage = CGImageSourceCreateImageAtIndex(source, 0, NULL);
 
@@ -882,6 +885,25 @@ didFinishRecordingToOutputFileAtURL:(NSURL *)outputFileURL
 - (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputMetadataObjects:(NSArray *)metadataObjects fromConnection:(AVCaptureConnection *)connection {
 
   for (AVMetadataMachineReadableCodeObject *metadata in metadataObjects) {
+    for (AVMetadataFaceObject *face in metadataObjects) {
+          if ([metadata.type isEqualToString:@"face"]) {
+            NSDictionary *event = @{
+              @"type": face.type,
+              @"bounds": @{
+                @"origin": @{
+                  @"x": [NSString stringWithFormat:@"%f", face.bounds.origin.x],
+                  @"y": [NSString stringWithFormat:@"%f", face.bounds.origin.y]
+                },
+                @"size": @{
+                  @"height": [NSString stringWithFormat:@"%f", face.bounds.size.height],
+                  @"width": [NSString stringWithFormat:@"%f", face.bounds.size.width],
+                }
+              }
+            };
+            [self.bridge.eventDispatcher sendAppEventWithName:@"FaceRecognized" body:event];
+          }
+    }
+
     for (id barcodeType in self.barCodeTypes) {
       if ([metadata.type isEqualToString:barcodeType]) {
         // Transform the meta-data coordinates to screen coords
