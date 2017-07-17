@@ -26,14 +26,15 @@ public class RCTCamera {
     private int _orientation = -1;
     private int _actualDeviceOrientation = 0;
     private int _adjustedDeviceOrientation = 0;
+    private boolean _shouldCaptureOnFace = false;
 
     public static RCTCamera getInstance() {
         return ourInstance;
     }
+
     public static void createInstance(int deviceOrientation) {
         ourInstance = new RCTCamera(deviceOrientation);
     }
-
 
     public synchronized Camera acquireCameraInstance(int type) {
         if (null == _cameras.get(type) && null != _cameraTypeToIndex.get(type)) {
@@ -116,21 +117,21 @@ public class RCTCamera {
     }
 
     private Camera.Size getClosestSize(List<Camera.Size> supportedSizes, int matchWidth, int matchHeight) {
-      Camera.Size closestSize = null;
-      for (Camera.Size size : supportedSizes) {
-          if (closestSize == null) {
-              closestSize = size;
-              continue;
-          }
+        Camera.Size closestSize = null;
+        for (Camera.Size size : supportedSizes) {
+            if (closestSize == null) {
+                closestSize = size;
+                continue;
+            }
 
-          int currentDelta = Math.abs(closestSize.width - matchWidth) * Math.abs(closestSize.height - matchHeight);
-          int newDelta = Math.abs(size.width - matchWidth) * Math.abs(size.height - matchHeight);
+            int currentDelta = Math.abs(closestSize.width - matchWidth) * Math.abs(closestSize.height - matchHeight);
+            int newDelta = Math.abs(size.width - matchWidth) * Math.abs(size.height - matchHeight);
 
-          if (newDelta < currentDelta) {
-              closestSize = size;
-          }
-      }
-      return closestSize;
+            if (newDelta < currentDelta) {
+                closestSize = size;
+            }
+        }
+        return closestSize;
     }
 
     protected List<Camera.Size> getSupportedVideoSizes(Camera camera) {
@@ -161,11 +162,19 @@ public class RCTCamera {
     }
 
     public boolean isBarcodeScannerEnabled() {
-      return _barcodeScannerEnabled;
+        return _barcodeScannerEnabled;
+    }
+
+    public boolean isCaptureOnfFaceEnabled() {
+        return _shouldCaptureOnFace;
     }
 
     public void setBarcodeScannerEnabled(boolean barcodeScannerEnabled) {
         _barcodeScannerEnabled = barcodeScannerEnabled;
+    }
+
+    public void setCaptureOnFace(boolean shouldCaptureOnFace) {
+        _shouldCaptureOnFace = shouldCaptureOnFace;
     }
 
     public List<String> getBarCodeTypes() {
@@ -217,28 +226,30 @@ public class RCTCamera {
         Camera.Size pictureSize = null;
         List<Camera.Size> supportedSizes = parameters.getSupportedPictureSizes();
         switch (captureQuality) {
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_LOW:
-                pictureSize = getSmallestSize(supportedSizes);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_MEDIUM:
-                pictureSize = supportedSizes.get(supportedSizes.size() / 2);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_HIGH:
-                pictureSize = getBestSize(parameters.getSupportedPictureSizes(), Integer.MAX_VALUE, Integer.MAX_VALUE);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_PREVIEW:
-                Camera.Size optimalPreviewSize = getBestSize(parameters.getSupportedPreviewSizes(), Integer.MAX_VALUE, Integer.MAX_VALUE);
-                pictureSize = getClosestSize(parameters.getSupportedPictureSizes(), optimalPreviewSize.width, optimalPreviewSize.height);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_480P:
-                pictureSize = getBestSize(supportedSizes, RESOLUTION_480P.width, RESOLUTION_480P.height);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_720P:
-                pictureSize = getBestSize(supportedSizes, RESOLUTION_720P.width, RESOLUTION_720P.height);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_1080P:
-                pictureSize = getBestSize(supportedSizes, RESOLUTION_1080P.width, RESOLUTION_1080P.height);
-                break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_LOW:
+            pictureSize = getSmallestSize(supportedSizes);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_MEDIUM:
+            pictureSize = supportedSizes.get(supportedSizes.size() / 2);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_HIGH:
+            pictureSize = getBestSize(parameters.getSupportedPictureSizes(), Integer.MAX_VALUE, Integer.MAX_VALUE);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_PREVIEW:
+            Camera.Size optimalPreviewSize = getBestSize(parameters.getSupportedPreviewSizes(), Integer.MAX_VALUE,
+                    Integer.MAX_VALUE);
+            pictureSize = getClosestSize(parameters.getSupportedPictureSizes(), optimalPreviewSize.width,
+                    optimalPreviewSize.height);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_480P:
+            pictureSize = getBestSize(supportedSizes, RESOLUTION_480P.width, RESOLUTION_480P.height);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_720P:
+            pictureSize = getBestSize(supportedSizes, RESOLUTION_720P.width, RESOLUTION_720P.height);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_1080P:
+            pictureSize = getBestSize(supportedSizes, RESOLUTION_1080P.width, RESOLUTION_1080P.height);
+            break;
         }
 
         if (pictureSize != null) {
@@ -257,33 +268,33 @@ public class RCTCamera {
         List<Camera.Size> supportedSizes = getSupportedVideoSizes(camera);
         CamcorderProfile cm = null;
         switch (captureQuality) {
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_LOW:
-                videoSize = getSmallestSize(supportedSizes);
-                cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_480P);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_MEDIUM:
-                videoSize = supportedSizes.get(supportedSizes.size() / 2);
-                cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_720P);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_HIGH:
-                videoSize = getBestSize(supportedSizes, Integer.MAX_VALUE, Integer.MAX_VALUE);
-                cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_HIGH);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_480P:
-                videoSize = getBestSize(supportedSizes, RESOLUTION_480P.width, RESOLUTION_480P.height);
-                cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_480P);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_720P:
-                videoSize = getBestSize(supportedSizes, RESOLUTION_720P.width, RESOLUTION_720P.height);
-                cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_720P);
-                break;
-            case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_1080P:
-                videoSize = getBestSize(supportedSizes, RESOLUTION_1080P.width, RESOLUTION_1080P.height);
-                cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_1080P);
-                break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_LOW:
+            videoSize = getSmallestSize(supportedSizes);
+            cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_480P);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_MEDIUM:
+            videoSize = supportedSizes.get(supportedSizes.size() / 2);
+            cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_720P);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_HIGH:
+            videoSize = getBestSize(supportedSizes, Integer.MAX_VALUE, Integer.MAX_VALUE);
+            cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_HIGH);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_480P:
+            videoSize = getBestSize(supportedSizes, RESOLUTION_480P.width, RESOLUTION_480P.height);
+            cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_480P);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_720P:
+            videoSize = getBestSize(supportedSizes, RESOLUTION_720P.width, RESOLUTION_720P.height);
+            cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_720P);
+            break;
+        case RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_1080P:
+            videoSize = getBestSize(supportedSizes, RESOLUTION_1080P.width, RESOLUTION_1080P.height);
+            cm = CamcorderProfile.get(_cameraTypeToIndex.get(cameraType), CamcorderProfile.QUALITY_1080P);
+            break;
         }
 
-        if (cm == null){
+        if (cm == null) {
             return null;
         }
 
@@ -304,12 +315,12 @@ public class RCTCamera {
         Camera.Parameters parameters = camera.getParameters();
         String value = parameters.getFlashMode();
         switch (torchMode) {
-            case RCTCameraModule.RCT_CAMERA_TORCH_MODE_ON:
-                value = Camera.Parameters.FLASH_MODE_TORCH;
-                break;
-            case RCTCameraModule.RCT_CAMERA_TORCH_MODE_OFF:
-                value = Camera.Parameters.FLASH_MODE_OFF;
-                break;
+        case RCTCameraModule.RCT_CAMERA_TORCH_MODE_ON:
+            value = Camera.Parameters.FLASH_MODE_TORCH;
+            break;
+        case RCTCameraModule.RCT_CAMERA_TORCH_MODE_OFF:
+            value = Camera.Parameters.FLASH_MODE_OFF;
+            break;
         }
 
         List<String> flashModes = parameters.getSupportedFlashModes();
@@ -328,15 +339,15 @@ public class RCTCamera {
         Camera.Parameters parameters = camera.getParameters();
         String value = parameters.getFlashMode();
         switch (flashMode) {
-            case RCTCameraModule.RCT_CAMERA_FLASH_MODE_AUTO:
-                value = Camera.Parameters.FLASH_MODE_AUTO;
-                break;
-            case RCTCameraModule.RCT_CAMERA_FLASH_MODE_ON:
-                value = Camera.Parameters.FLASH_MODE_ON;
-                break;
-            case RCTCameraModule.RCT_CAMERA_FLASH_MODE_OFF:
-                value = Camera.Parameters.FLASH_MODE_OFF;
-                break;
+        case RCTCameraModule.RCT_CAMERA_FLASH_MODE_AUTO:
+            value = Camera.Parameters.FLASH_MODE_AUTO;
+            break;
+        case RCTCameraModule.RCT_CAMERA_FLASH_MODE_ON:
+            value = Camera.Parameters.FLASH_MODE_ON;
+            break;
+        case RCTCameraModule.RCT_CAMERA_FLASH_MODE_OFF:
+            value = Camera.Parameters.FLASH_MODE_OFF;
+            break;
         }
         List<String> flashModes = parameters.getSupportedFlashModes();
         if (flashModes != null && flashModes.contains(value)) {
@@ -398,7 +409,8 @@ public class RCTCamera {
 
         // set preview size
         // defaults to highest resolution available
-        Camera.Size optimalPreviewSize = getBestSize(parameters.getSupportedPreviewSizes(), Integer.MAX_VALUE, Integer.MAX_VALUE);
+        Camera.Size optimalPreviewSize = getBestSize(parameters.getSupportedPreviewSizes(), Integer.MAX_VALUE,
+                Integer.MAX_VALUE);
         int width = optimalPreviewSize.width;
         int height = optimalPreviewSize.height;
 
@@ -429,12 +441,14 @@ public class RCTCamera {
         for (int i = 0; i < Camera.getNumberOfCameras(); i++) {
             Camera.CameraInfo info = new Camera.CameraInfo();
             Camera.getCameraInfo(i, info);
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT && _cameraInfos.get(RCTCameraModule.RCT_CAMERA_TYPE_FRONT) == null) {
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT
+                    && _cameraInfos.get(RCTCameraModule.RCT_CAMERA_TYPE_FRONT) == null) {
                 _cameraInfos.put(RCTCameraModule.RCT_CAMERA_TYPE_FRONT, new CameraInfoWrapper(info));
                 _cameraTypeToIndex.put(RCTCameraModule.RCT_CAMERA_TYPE_FRONT, i);
                 acquireCameraInstance(RCTCameraModule.RCT_CAMERA_TYPE_FRONT);
                 releaseCameraInstance(RCTCameraModule.RCT_CAMERA_TYPE_FRONT);
-            } else if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK && _cameraInfos.get(RCTCameraModule.RCT_CAMERA_TYPE_BACK) == null) {
+            } else if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK
+                    && _cameraInfos.get(RCTCameraModule.RCT_CAMERA_TYPE_BACK) == null) {
                 _cameraInfos.put(RCTCameraModule.RCT_CAMERA_TYPE_BACK, new CameraInfoWrapper(info));
                 _cameraTypeToIndex.put(RCTCameraModule.RCT_CAMERA_TYPE_BACK, i);
                 acquireCameraInstance(RCTCameraModule.RCT_CAMERA_TYPE_BACK);

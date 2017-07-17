@@ -5,22 +5,32 @@
 package com.lwansbrough.RCTCamera;
 
 import android.content.Context;
+import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.TextureView;
 import android.os.AsyncTask;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.facebook.react.bridge.NativeMap;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.logging.Logger;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
@@ -79,6 +89,112 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
 
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+    }
+
+    private Camera.FaceDetectionListener faceDetectionListener = new Camera.FaceDetectionListener() {
+
+        @Override
+        public void onFaceDetection(Camera.Face[] faces, Camera camera) {
+            if (faces.length > 0) {
+                Matrix matrix = new Matrix();
+                boolean frontCamera = (getCameraType() == RCTCameraModule.RCT_CAMERA_TYPE_FRONT);
+
+                int height = getHeight();
+                int width = getWidth();
+
+                matrix.setScale(frontCamera ? -1 : 1, 1);
+                matrix.postRotate(RCTCamera.getInstance().getOrientation());
+                matrix.postScale(width / 2000f, height / 2000f);
+                matrix.postTranslate(width / 2f, height / 2f);
+
+                double pixelDensity = getPixelDensity();
+                for (Camera.Face face : faces) {
+                    RectF faceRect = new RectF(face.rect);
+                    matrix.mapRect(faceRect);
+
+                    final WritableMap faceEvent;
+                    faceEvent = Arguments.createMap();
+                    faceEvent.putInt("faceId", face.id);
+                    faceEvent.putBoolean("isFrontCamera", frontCamera);
+
+                    faceEvent.putString("type", "face");
+
+                    WritableMap origin;
+                    WritableMap size;
+                    origin = Arguments.createMap();
+                    size = Arguments.createMap();
+
+                    origin.putDouble("x", faceRect.left / pixelDensity);
+                    origin.putDouble("y", faceRect.top / pixelDensity);
+                    size.putDouble("height", faceRect.height() / pixelDensity);
+                    size.putDouble("width", faceRect.width() / pixelDensity);
+
+                    WritableMap bounds;
+                    bounds = Arguments.createMap();
+
+                    bounds.putMap("origin", origin);
+                    bounds.putMap("size", size);
+
+                    faceEvent.putMap("bounds", bounds);
+
+                    if (RCTCamera.getInstance().isCaptureOnfFaceEnabled()) {
+                        RCTCamera.getInstance().setCaptureOnFace(false);
+                        WritableMap options = new WritableNativeMap();
+                        options.putBoolean("playSoundOnCapture", false);
+                        options.putInt("target", RCTCameraModule.RCT_CAMERA_CAPTURE_TARGET_TEMP);
+                        options.putInt("type", getCameraType());
+                        options.putInt("mode", RCTCameraModule.RCT_CAMERA_CAPTURE_MODE_STILL);
+                        options.putString("quality", RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_HIGH);
+                        RCTCameraModule.getReactContextSingleton().getNativeModule(RCTCameraModule.class)
+                                .capture(options, new Promise() {
+                                    @Override
+                                    public void resolve(Object value) {
+                                        WritableMap v = (WritableNativeMap) value;
+                                        faceEvent.putString("path", v.getString("path"));
+                                        ((ReactContext) getContext())
+                                                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                                .emit("FaceRecognized", faceEvent);
+                                    }
+
+                                    @Override
+                                    public void reject(Throwable reason) {
+                                        Log.e("reject", "reject");
+                                    }
+
+                                    @Override
+                                    public void reject(String reason) {
+                                        Log.e("reject", reason);
+
+                                    }
+
+                                    @Override
+                                    public void reject(String code, Throwable extra) {
+                                        Log.e("reject", code);
+
+                                    }
+
+                                    @Override
+                                    public void reject(String code, String reason, Throwable extra) {
+                                        Log.e("reject", reason);
+
+                                    }
+                                });
+                    } else {
+                        ((ReactContext) getContext()).getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                .emit("FaceRecognized", faceEvent);
+                    }
+                }
+            }
+        }
+    };
+
+    private int getCameraType() {
+        return _cameraType;
+    }
+
+    public double getPixelDensity() {
+        DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
+        return dm.density;
     }
 
     public double getRatio() {
@@ -164,16 +280,16 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
                 } else {
                     throw new RuntimeException("Unsupported capture mode:" + _captureMode);
                 }
-                Camera.Size optimalPictureSize = RCTCamera.getInstance().getBestSize(
-                        supportedSizes,
-                        Integer.MAX_VALUE,
-                        Integer.MAX_VALUE
-                );
+                Camera.Size optimalPictureSize = RCTCamera.getInstance().getBestSize(supportedSizes, Integer.MAX_VALUE,
+                        Integer.MAX_VALUE);
                 parameters.setPictureSize(optimalPictureSize.width, optimalPictureSize.height);
 
                 _camera.setParameters(parameters);
                 _camera.setPreviewTexture(_surfaceTexture);
                 _camera.startPreview();
+
+                _camera.setFaceDetectionListener(faceDetectionListener);
+                _camera.startFaceDetection();
                 // send previews to `onPreviewFrame`
                 _camera.setPreviewCallback(this);
             } catch (NullPointerException e) {
@@ -192,6 +308,7 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
             _isStopping = true;
             try {
                 if (_camera != null) {
+                    _camera.stopFaceDetection();
                     _camera.stopPreview();
                     // stop sending previews to `onPreviewFrame`
                     _camera.setPreviewCallback(null);
@@ -209,9 +326,9 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
 
     /**
      * Parse barcodes as BarcodeFormat constants.
-     *
+     * <p>
      * Supports all iOS codes except [code39mod43, itf14]
-     *
+     * <p>
      * Additionally supports [codabar, maxicode, rss14, rssexpanded, upca, upceanextension]
      */
     private BarcodeFormat parseBarCodeString(String c) {
@@ -277,9 +394,9 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
 
     /**
      * Spawn a barcode reader task if
-     *  - the barcode scanner is enabled (has a onBarCodeRead function)
-     *  - one isn't already running
-     *
+     * - the barcode scanner is enabled (has a onBarCodeRead function)
+     * - one isn't already running
+     * <p>
      * See {Camera.PreviewCallback}
      */
     public void onPreviewFrame(byte[] data, Camera camera) {
@@ -323,7 +440,8 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
             }
 
             try {
-                PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(imageData, width, height, 0, 0, width, height, false);
+                PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(imageData, width, height, 0, 0, width,
+                        height, false);
                 BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
                 Result result = _multiFormatReader.decodeWithState(bitmap);
 
@@ -331,7 +449,8 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
                 WritableMap event = Arguments.createMap();
                 event.putString("data", result.getText());
                 event.putString("type", result.getBarcodeFormat().toString());
-                reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit("CameraBarCodeReadAndroid", event);
+                reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                        .emit("CameraBarCodeReadAndroid", event);
 
             } catch (Throwable t) {
                 // meh
@@ -348,7 +467,6 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
         // Get the pointer ID
         Camera.Parameters params = _camera.getParameters();
         int action = event.getAction();
-
 
         if (event.getPointerCount() > 1) {
             // handle multi-touch events
@@ -387,7 +505,7 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
 
     /**
      * Handles setting focus to the location of the event.
-     *
+     * <p>
      * Note that this will override the focus mode on the camera to FOCUS_MODE_AUTO if available,
      * even if this was previously something else (such as FOCUS_MODE_CONTINUOUS_*; see also
      * {@link #startCamera()}. However, this makes sense - after the user has initiated any
@@ -408,7 +526,8 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
             // Compute focus area rect.
             Camera.Area focusAreaFromMotionEvent;
             try {
-                focusAreaFromMotionEvent = RCTCameraUtils.computeFocusAreaFromMotionEvent(event, _surfaceTextureWidth, _surfaceTextureHeight);
+                focusAreaFromMotionEvent = RCTCameraUtils.computeFocusAreaFromMotionEvent(event, _surfaceTextureWidth,
+                        _surfaceTextureHeight);
             } catch (final RuntimeException e) {
                 e.printStackTrace();
                 return;
@@ -447,7 +566,9 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
         }
     }
 
-    /** Determine the space between the first two fingers */
+    /**
+     * Determine the space between the first two fingers
+     */
     private float getFingerSpacing(MotionEvent event) {
         float x = event.getX(0) - event.getX(1);
         float y = event.getY(0) - event.getY(1);
