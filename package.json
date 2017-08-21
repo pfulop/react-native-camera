@@ -20,8 +20,7 @@
     "barcode"
   ],
   "dependencies": {
-    "opencollective": "^1.0.3",
-    "react": "^15.6.1"
+    "opencollective": "^1.0.3"
   },
   "collective": {
     "type": "opencollective",
