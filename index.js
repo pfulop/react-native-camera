@@ -236,7 +236,7 @@ export default class Camera extends Component {
       this.nextFaceCapture = false;
       CameraManager.capture({
         target: constants.CaptureTarget.temp,
-      }).then(capture => this.props.onFaceRecognized({ ...data, capture }));
+      }).then(capture => this.props.onFaceRecognized({ ...data, ...capture }));
     } else if (this.props.onFaceRecognized) {
       this.props.onFaceRecognized(data);
     }
