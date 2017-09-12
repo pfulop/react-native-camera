@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import {
   DeviceEventEmitter, // android
   NativeAppEventEmitter, // ios
+  NativeEventEmitter,
   NativeModules,
   Platform,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 
 const CameraManager = NativeModules.CameraManager || NativeModules.CameraModule;
 const CAMERA_REF = 'camera';
+const cameraManagerEmitter = new NativeEventEmitter(CameraManager);
 
 function convertNativeProps(props) {
   const newProps = {
@@ -191,16 +193,10 @@ export default class Camera extends Component {
     const { onFaceRecognized } = props || this.props;
     this._removeOnFaceRecognizedListener();
     if (onFaceRecognized) {
-      this.cameraFaceRecognizedListener = Platform.select({
-        ios: NativeAppEventEmitter.addListener(
-          'FaceRecognized',
+     this.cameraFaceRecognizedListener = cameraManagerEmitter.addListener(
+          ‘FaceRecognized’,
           this._onFaceRecognized,
-        ),
-        android: DeviceEventEmitter.addListener(
-          'FaceRecognized',
-          this._onFaceRecognized,
-        ),
-      });
+        );
     }
   }
 
