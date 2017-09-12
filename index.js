@@ -194,7 +194,7 @@ export default class Camera extends Component {
     this._removeOnFaceRecognizedListener();
     if (onFaceRecognized) {
      this.cameraFaceRecognizedListener = cameraManagerEmitter.addListener(
-          ‘FaceRecognized’,
+          'FaceRecognized',
           this._onFaceRecognized,
         );
     }
