@@ -193,7 +193,7 @@ export default class Camera extends Component {
     const { onFaceRecognized } = props || this.props;
     this._removeOnFaceRecognizedListener();
     if (onFaceRecognized) {
-      if(Platform.OS !== ‘ios’)
+      if(Platform.OS !== 'ios')
      this.cameraFaceRecognizedListener = cameraManagerEmitter.addListener(
           'FaceRecognized',
           this._onFaceRecognized,
