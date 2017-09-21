@@ -234,25 +234,11 @@ export default class Camera extends Component {
   };
 
   _onFaceRecognized = data => {
-    const props = convertNativeProps(this.props);
-    options = {
-      audio: props.captureAudio,
-      barCodeTypes: props.barCodeTypes,
-      mode: props.captureMode,
-      playSoundOnCapture: props.playSoundOnCapture,
-      target: props.captureTarget,
-      quality: props.captureQuality,
-      type: props.type,
-      title: '',
-      description: '',
-      mirrorImage: props.mirrorImage,
-      fixOrientation: props.fixOrientation,
-    };
-    if (this.nextFaceCapture && this.props.onFaceRecognized) {
+   if (this.nextFaceCapture && this.props.onFaceRecognized) {
       this.nextFaceCapture = false;
       CameraManager.capture({
         target: constants.CaptureTarget.temp,
-        ...options,
+        orientation: 1,
       }).then(capture => this.props.onFaceRecognized({ ...data, ...capture }));
     } else if (this.props.onFaceRecognized) {
       this.props.onFaceRecognized(data);
