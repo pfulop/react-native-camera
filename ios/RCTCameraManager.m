@@ -312,7 +312,7 @@ RCT_CUSTOM_VIEW_PROPERTY(captureAudio, BOOL, RCTCamera) {
 
 - (id)init {
     if ((self = [super init])) {
-        self.mirrorImage = false;
+        self.mirrorImage = true;
         
         self.sessionQueue = dispatch_queue_create("cameraManagerQueue", DISPATCH_QUEUE_SERIAL);
         
