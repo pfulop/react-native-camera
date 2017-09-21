@@ -103,7 +103,7 @@ export default class Camera extends Component {
   static defaultProps = {
     aspect: CameraManager.Aspect.fill,
     type: CameraManager.Type.back,
-    orientation: CameraManager.Orientation.auto,
+    orientation: CameraManager.Orientation.portrait,
     fixOrientation: false,
     captureAudio: false,
     captureMode: CameraManager.CaptureMode.still,
@@ -113,7 +113,7 @@ export default class Camera extends Component {
     flashMode: CameraManager.FlashMode.off,
     playSoundOnCapture: true,
     torchMode: CameraManager.TorchMode.off,
-    mirrorImage: false,
+    mirrorImage: true,
     barCodeTypes: Object.values(CameraManager.BarCodeType),
   };
 
