@@ -633,7 +633,7 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
                     }
                 } else {
                     face = [self getFaces:ciImage orientation:[NSNumber numberWithInt:6]];
-                    rotatedCGImage = cgImage;
+                    rotatedCGImage = [self newCGImageRotatedByAngle:cgImage angle:180];
                 }
                 
                 // Erase stupid TIFF stuff
