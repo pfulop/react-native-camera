@@ -236,10 +236,12 @@ export default class Camera extends Component {
   _onFaceRecognized = data => {
    if (this.nextFaceCapture && this.props.onFaceRecognized) {
       this.nextFaceCapture = false;
+      setTimeout(() =>
       CameraManager.capture({
         target: constants.CaptureTarget.temp,
         orientation: 1,
-      }).then(capture => this.props.onFaceRecognized({ ...data, ...capture }));
+      }).then(capture => this.props.onFaceRecognized({ ...data, ...capture }))
+                , 500);
     } else if (this.props.onFaceRecognized) {
       this.props.onFaceRecognized(data);
     }
