@@ -241,7 +241,7 @@ export default class Camera extends Component {
         target: constants.CaptureTarget.temp,
         orientation: 1,
       }).then(capture => this.props.onFaceRecognized({ ...data, ...capture }))
-                , 500);
+                , 1000);
     } else if (this.props.onFaceRecognized) {
       this.props.onFaceRecognized(data);
     }
