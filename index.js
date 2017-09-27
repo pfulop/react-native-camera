@@ -272,6 +272,8 @@ export default class Camera extends Component {
         isRecording: true,
       });
     }
+    return CameraManager.capture(options);
+
   }
 
   captureFace() {
