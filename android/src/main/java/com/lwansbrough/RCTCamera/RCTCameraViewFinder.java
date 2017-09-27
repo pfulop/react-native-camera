@@ -146,6 +146,7 @@ class RCTCameraViewFinder extends TextureView implements TextureView.SurfaceText
                         options.putInt("mode", RCTCameraModule.RCT_CAMERA_CAPTURE_MODE_STILL);
                         options.putInt("orientation", RCTCameraModule.RCT_CAMERA_ORIENTATION_PORTRAIT);
                         options.putBoolean("mirrorImage", true);
+                        options.putBoolean("fixOrientation", true);
                         options.putString("quality", RCTCameraModule.RCT_CAMERA_CAPTURE_QUALITY_HIGH);
                         RCTCameraModule.getReactContextSingleton().getNativeModule(RCTCameraModule.class)
                                 .capture(options, new Promise() {
